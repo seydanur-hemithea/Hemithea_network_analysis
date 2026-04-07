@@ -53,6 +53,11 @@ def create_network_graph(df, source, target, itme_kuvveti=2.5):
 # --- 2. ARAYÜZ VE KARAR MEKANİZMASI ---
 st.set_page_config(page_title="Hemithea Analiz", layout="wide")
 
+# Eğer mod henüz tanımlanmamışsa, boş olarak başlat
+if 'mod' not in st.session_state:
+    st.session_state.mod = None
+
+
 # Sidebar'da ayarlar her zaman dursun
 st.sidebar.title("⚙️ Grafik Ayarları")
 itme = st.sidebar.slider("Düğüm Uzaklığı (Ferahlık)", 1.0, 6.0, 2.5)
