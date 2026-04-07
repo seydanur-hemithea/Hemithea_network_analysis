@@ -78,21 +78,27 @@ with col2:
 
 st.markdown("---")
 
-# MODÜL ÇALIŞTIRMA (Session State kullanarak sayfayı yönetiyoruz)
-if 'mod' not in st.session_state:
-    st.session_state.mod = None
+# --- 3. MODÜL MANTIĞI ---
 
 if st.session_state.mod == "efendi":
-    st.subheader("Efendi Kitabı Sosyal Ağ Haritası")
-    # Örnek Efendi Verisi
-    efendi_df = pd.DataFrame([
-        ["Ittihat Terakki", "Maliye"], ["Maliye", "Büyük Ticaret"], 
-        ["Büyük Ticaret", "Medya"], ["Masonik Bağlar", "Maliye"],
-        ["Mezarlık Ağları", "Büyük Ticaret"], ["Siyasi Karar Alıcılar", "Bürokrasi"]
-    ], columns=["source", "target"])
-    fig = create_network_graph(efendi_df, "source", "target", itme_kuvveti=itme)
-    st.plotly_chart(fig, use_container_width=True)
-    if st.button("← Ana Menüye Dön"): st.session_state.mod = None
+    st.subheader("Efendi Kitabı: Derin Sosyal Ağ Analizi")
+    
+    # TAM OLARAK BURAYA:
+    try:
+        # GitHub'a yüklediğin dosyanın adı 'efendi_verisi.csv' ise:
+        efendi_df = pd.read_csv("efendi_verisi.csv") 
+        
+        # Senin o meşhur analiz motorunu burada ateşliyoruz:
+        fig = create_network_graph(efendi_df, "source", "target", itme_kuvveti=itme)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        st.success("Analiz başarıyla yüklendi!")
+    except Exception as e:
+        st.error(f"Dosya okunurken bir hata oluştu: {e}")
+    
+    if st.button("← Ana Menüye Dön"): 
+        st.session_state.mod = None
+
 
 elif st.session_state.mod == "kendi":
     st.subheader("Veri Yükleme Alanı")
