@@ -6,7 +6,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 
-# --- 1. SENİN ÇALIŞAN GRAFİK MOTORUN ---
+# --- 1.  ---
 def create_network_graph(df, source, target, itme_kuvveti=2.5):
     df.columns = df.columns.str.strip().str.lower()
     G = nx.from_pandas_edgelist(df, source=source, target=target)
@@ -51,14 +51,14 @@ def create_network_graph(df, source, target, itme_kuvveti=2.5):
     return fig
 
 # --- 2. ARAYÜZ VE KARAR MEKANİZMASI ---
-st.set_page_config(page_title="Heithea Analiz", layout="wide")
+st.set_page_config(page_title="Hemithea Analiz", layout="wide")
 
 # Sidebar'da ayarlar her zaman dursun
 st.sidebar.title("⚙️ Grafik Ayarları")
 itme = st.sidebar.slider("Düğüm Uzaklığı (Ferahlık)", 1.0, 6.0, 2.5)
 
 # ANA SAYFA BAŞLIĞI
-st.title("🌐 Heithea: Yapay Zeka Destekli Sosyal Ağ Analizi")
+st.title("🌐 Hemithea: Yapay Zeka Destekli Sosyal Ağ Analizi")
 st.write("Hoş geldiniz. Analize başlamak için lütfen bir seçenek belirleyin:")
 
 # 2 SEÇENEKLİ GİRİŞ (Görsel Kartlar gibi)
@@ -86,7 +86,7 @@ if st.session_state.mod == "efendi":
     # TAM OLARAK BURAYA:
     try:
         # GitHub'a yüklediğin dosyanın adı 'efendi_verisi.csv' ise:
-        efendi_df = pd.read_csv("efendi_verisi.csv") 
+        efendi_df = pd.read_csv("efendi_veri.csv") 
         
         # Senin o meşhur analiz motorunu burada ateşliyoruz:
         fig = create_network_graph(efendi_df, "source", "target", itme_kuvveti=itme)
