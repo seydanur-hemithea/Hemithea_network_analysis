@@ -1,3 +1,12 @@
+---
+© 2026 Şeydanur-hemithea | All Rights Reserved.
+This project is protected under **CC BY-NC-ND 4.0** license. 
+[Görünsün ama izinsiz kopyalanamaz, ticari amaçla kullanılamaz.]
+---
+
+
+
+
 Hemithea: AI-Powered Network Analysis Engine
 ​Hemithea, karmaşık veri kümelerindeki ilişkisel yapıları matematiksel modellerle haritalandıran ve interaktif olarak görselleştiren bağımsız bir analiz platformudur. Proje, veri biliminin Graph Theory (Çizge Kuramı) ve Unsupervised Learning (Denetimsiz Öğrenme) dallarını birleştirir.
 ​🛠 Teknik Mimari ve Algoritmalar
