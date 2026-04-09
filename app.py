@@ -57,6 +57,11 @@ st.set_page_config(page_title="Hemithea Analiz", layout="wide")
 if 'mod' not in st.session_state:
     st.session_state.mod = None
 
+# 🚀 ANDROID İLETİŞİM KÖPRÜSÜ (BURASI YENİ)
+# URL'deki ?action=analyze parametresini yakalıyoruz
+query_params = st.query_params
+if query_params.get("action") == "analyze":
+    st.session_state.mod = "efendi" # Butona basılmış gibi davran
 
 # Sidebar'da ayarlar her zaman dursun
 st.sidebar.title("⚙️ Grafik Ayarları")
