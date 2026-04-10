@@ -80,7 +80,7 @@ if query_params.get("action") == "analyze":
 if not is_app_mode:
     st.title("🌐 Hemithea Network Analysis")
     if st.session_state.mod is None:
-        st.write("Hoş geldiniz. Analiz türünü seçin:")
+        st.write("Hoş geldiniz.Lutfen seçim yapın:")
         c1, c2 = st.columns(2)
         with c1:
             if st.button("📘 Efendi Örneği"): st.session_state.mod = "efendi"; st.rerun()
