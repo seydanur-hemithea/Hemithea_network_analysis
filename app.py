@@ -6,21 +6,18 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 
-# --- 1.  ---
+# --- 1. ANALİZ MOTORU ---
 def create_network_graph(df, source, target, itme_kuvveti=2.5):
     df.columns = df.columns.str.strip().str.lower()
     G = nx.from_pandas_edgelist(df, source=source, target=target)
     nodes_list = list(G.nodes())
     
-    # AI Kümeleme
     degrees = np.array([G.degree(n) for n in nodes_list]).reshape(-1, 1)
     kmeans = KMeans(n_clusters=min(4, len(nodes_list)), random_state=42)
     clusters = kmeans.fit_predict(StandardScaler().fit_transform(degrees))
     
-    # Ferah Yerleşim
     pos = nx.spring_layout(G, k=itme_kuvveti, iterations=500, seed=42)
     
-    # Çizim Hazırlığı
     edge_x, edge_y = [], []
     for edge in G.edges():
         x0, y0 = pos[edge[0]]; x1, y1 = pos[edge[1]]
@@ -50,83 +47,73 @@ def create_network_graph(df, source, target, itme_kuvveti=2.5):
                                   margin=dict(b=0, l=0, r=0, t=0)))
     return fig
 
-# --- 2. ARAYÜZ VE KARAR MEKANİZMASI ---
+# --- 2. HİBRİT KONTROL MEKANİZMASI ---
 st.set_page_config(page_title="Hemithea Analiz", layout="wide")
 
-# Eğer mod henüz tanımlanmamışsa, boş olarak başlat
+# Parametreleri alıyoruz
+query_params = st.query_params
+is_app_mode = query_params.get("mode") == "app"
+
+# Eğer Uygulama Modundaysak (is_app_mode == True), Streamlit arayüzünü gizle
+if is_app_mode:
+    st.markdown("""
+        <style>
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        .stDeployButton {display:none;}
+        [data-testid="stSidebar"] {display: none;}
+        </style>
+        """, unsafe_allow_html=True)
+
+# Session State
 if 'mod' not in st.session_state:
     st.session_state.mod = None
 
-# 🚀 ANDROID İLETİŞİM KÖPRÜSÜ (BURASI YENİ)
-# URL'deki ?action=analyze parametresini yakalıyoruz
-query_params = st.query_params
+# Android'den gelen tetikleme (Action parametresi)
 if query_params.get("action") == "analyze":
-    st.session_state.mod = "efendi" # Butona basılmış gibi davran
+    st.session_state.mod = "efendi"
 
-# Sidebar'da ayarlar her zaman dursun
-st.sidebar.title("⚙️ Grafik Ayarları")
-itme = st.sidebar.slider("Düğüm Uzaklığı (Ferahlık)", 1.0, 6.0, 2.5)
+# --- 3. ARAYÜZ (SADECE WEB MODUNDA GÖRÜNÜR) ---
 
-# ANA SAYFA BAŞLIĞI
-st.title("🌐 Hemithea: Yapay Zeka Destekli Sosyal Ağ Analizi")
-st.write("Hoş geldiniz. Analize başlamak için lütfen bir seçenek belirleyin:")
+if not is_app_mode:
+    st.sidebar.title("⚙️ Grafik Ayarları")
+    itme = st.sidebar.slider("Düğüm Uzaklığı (Ferahlık)", 1.0, 6.0, 2.5)
+    st.title("🌐 Hemithea: Yapay Zeka Destekli Sosyal Ağ Analizi")
+    
+    if st.session_state.mod is None:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.info("### 📘 Efendi Örnek Proje")
+            if st.button("Örneği Görüntüle", use_container_width=True):
+                st.session_state.mod = "efendi"
+        with col2:
+            st.success("### 📁 Kendi Analizini Oluştur")
+            if st.button("Kendi Verimi Yükle", use_container_width=True):
+                st.session_state.mod = "kendi"
+else:
+    # Uygulama modundaysak sabit ferahlık değeri verelim (veya bunu da parametreyle alabiliriz)
+    itme = 2.5
 
-# 2 SEÇENEKLİ GİRİŞ (Görsel Kartlar gibi)
-col1, col2 = st.columns(2)
-
-with col1:
-    st.info("### 📘 Efendi Örnek Proje")
-    st.write("Kitaptaki karmaşık siyasi ve ticari ağları hazır veri setiyle inceleyin.")
-    if st.button("Örneği Görüntüle", use_container_width=True):
-        st.session_state.mod = "efendi"
-
-with col2:
-    st.success("### 📁 Kendi Analizini Oluştur")
-    st.write("Kendi CSV veya TXT dosyanızı yükleyerek ağ haritanızı saniyeler içinde çıkarın.")
-    if st.button("Kendi Verimi Yükle", use_container_width=True):
-        st.session_state.mod = "kendi"
-
-st.markdown("---")
-
-# --- 3. MODÜL MANTIĞI ---
+# --- 4. MODÜL MANTIĞI ---
 
 if st.session_state.mod == "efendi":
-    st.subheader("Efendi Kitabı: Derin Sosyal Ağ Analizi")
+    if not is_app_mode: st.subheader("Efendi Kitabı: Derin Sosyal Ağ Analizi")
     
-    # TAM OLARAK BURAYA:
     try:
-        # GitHub'a yüklediğin dosyanın adı 'efendi_verisi.csv' ise:
         efendi_df = pd.read_csv("efendi_veri.csv") 
-        
-        # Senin o meşhur analiz motorunu burada ateşliyoruz:
         fig = create_network_graph(efendi_df, "source", "target", itme_kuvveti=itme)
         st.plotly_chart(fig, use_container_width=True)
-        
-        st.success("Analiz başarıyla yüklendi!")
     except Exception as e:
-        st.error(f"Dosya okunurken bir hata oluştu: {e}")
+        st.error(f"Hata: {e}")
     
-    if st.button("← Ana Menüye Dön"): 
+    if not is_app_mode and st.button("← Ana Menüye Dön"): 
         st.session_state.mod = None
 
-
 elif st.session_state.mod == "kendi":
+    # Bu kısım webde dosya yükleme için kalıyor, uygulama için ayrı yapı kuracağız
     st.subheader("Veri Yükleme Alanı")
     file = st.file_uploader("Dosyanızı seçin (CSV/TXT)", type=["csv", "txt"])
-    
     if file:
         df = pd.read_csv(file, sep=None, engine='python')
-        st.dataframe(df.head(3)) # İlk 3 satırı göster
-        
-        # Sütun eşleştirme
-        cols = [c.strip().lower() for c in df.columns]
-        df.columns = cols
-        c1, c2 = st.columns(2)
-        with c1: src = st.selectbox("Kaynak (Source)", cols)
-        with c2: trg = st.selectbox("Hedef (Target)", cols)
-        
-        if st.button("Analizi Başlat"):
-            fig = create_network_graph(df, src, trg, itme_kuvveti=itme)
-            st.plotly_chart(fig, use_container_width=True)
-    
-    if st.button("← Ana Menüye Dön"): st.session_state.mod = None
+        # ... (Önceki kodun devamı)
