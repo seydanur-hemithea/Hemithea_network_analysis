@@ -5,6 +5,8 @@ import plotly.graph_objects as go
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import numpy as np
+from pyvis.network import Network
+import streamlit.components.v1 as components
 
 # --- 1. ANALİZ MOTORU ---
 def create_network_graph(df, source, target, itme_kuvveti=2.5):
@@ -149,3 +151,63 @@ elif st.session_state.mod == "kendi":
     if st.button("← Ana Menüye Dön"):
         st.session_state.mod = None
         st.rerun()
+
+
+if data is not None:
+    # 1. HESAPLAMA MOTORU
+    G = nx.from_pandas_edgelist(data, source='Source', target='Target')
+    
+    # Metrikleri hesapla
+    degree_cent = nx.degree_centrality(G)
+    betweenness = nx.betweenness_centrality(G)
+    pagerank = nx.pagerank(G) # Popülerlik puanı (Google algoritması)
+
+    # 2. ÜST ÖZET KARTLARI (KPIs)
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Toplam Düğüm", len(G.nodes))
+    with col2:
+        st.metric("Toplam Bağlantı", len(G.edges))
+    with col3:
+        top_node = max(degree_cent, key=degree_cent.get)
+        st.metric("En Merkezi Aktör", top_node)
+    with col4:
+        st.metric("Ağ Yoğunluğu", f"{nx.density(G):.2f}")
+
+    st.divider()
+
+    # 3. ANA PANEL (Sol: Grafik, Sağ: Analiz Tablosu)
+    left_col, right_col = st.columns([2, 1])
+
+    with left_col:
+        st.subheader("🌐 İnteraktif Ağ Haritası")
+        net = Network(height="600px", width="100%", bgcolor="#ffffff", font_color="#333333")
+        net.from_nx(G)
+        
+        # Etiket ve Tooltip Ayarları
+        for node in net.nodes:
+            node["label"] = str(node["id"])
+            node["title"] = f"Bağlantı Sayısı: {G.degree(node['id'])}"
+            # Derecesine göre boyutlandır
+            node["size"] = 15 + (degree_cent[node["id"]] * 100)
+            node["color"] = "#E91E63" if node["id"] != top_node else "#FFD700"
+
+        net.toggle_physics(True)
+        html_data = net.generate_html()
+        components.html(html_data, height=650)
+
+    with right_col:
+        st.subheader("📊 Analiz Detayları")
+        
+        # Metrik DataFrame'i
+        metrics_df = pd.DataFrame({
+            'Aktör': list(degree_cent.keys()),
+            'Popülerlik': [f"{v:.2f}" for v in degree_cent.values()],
+            'Köprü Gücü': [f"{v:.2f}" for v in betweenness.values()]
+        }).sort_values(by='Popülerlik', ascending=False)
+
+        st.dataframe(metrics_df, use_container_width=True, height=550)
+
+    # 4. ALT PANEL: CSV İÇERİĞİ
+    with st.expander("📄 Ham Veri Kaynağını Görüntüle"):
+        st.write(data)
