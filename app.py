@@ -34,7 +34,7 @@ st.sidebar.title("🛠️ Analiz Ayarları")
 data_mode = st.sidebar.radio("Veri Kaynağı Seçin:", ["Efendi (Demo)", "Kendi Verini Yükle"])
 
 # Efendi GitHub Raw URL'ini buraya kendi linkinle güncelle
-EFENDI_URL = "https://raw.githubusercontent.com/seydanur/efendi/main/data.csv"
+EFENDI_URL = "https://github.com/seydanur-hemithea/Hemithea_network_analysis/blob/main/efendi_veri.csv"
 
 if data_mode == "Efendi (Demo)":
     data = load_data(EFENDI_URL, is_url=True)
