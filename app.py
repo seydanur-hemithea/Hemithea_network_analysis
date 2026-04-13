@@ -10,9 +10,8 @@ import requests
 from io import StringIO
 
 # --- 1. SAYFA AYARLARI ---
-st.set_page_config(layout="wide", page_title="Hemithea Network Analysis")
+st.set_page_config(layout="wide", page_title="Hemithea Network Analysis Pro")
 
-# --- 2. YÜKLEME FONKSİYONU ---
 @st.cache_data
 def load_data(url_or_file, is_url=True):
     try:
@@ -23,78 +22,89 @@ def load_data(url_or_file, is_url=True):
     except:
         return None
 
-# --- 3. SIDEBAR (DOSYA YÜKLEME ALANI) ---
-st.sidebar.header("📊 Veri Yönetimi")
+# --- 2. SIDEBAR ---
+st.sidebar.header("📂 Veri & Parametreler")
+data_choice = st.sidebar.selectbox("Veri Kaynağı:", ["Efendi Projesi (Demo)", "Kendi Verimi Yükle"])
 
-# Kullanıcıya seçenek sunalım ama varsayılanı 'Efendi' yapalım
-data_choice = st.sidebar.selectbox(
-    "Analiz Modu Seçin:",
-    ["Efendi Projesi (Hazır Demo)", "Kendi CSV Dosyamı Analiz Et"]
-)
-
-# Efendi URL (Senin GitHub linkin buraya gelecek)
 EFENDI_URL = "https://raw.githubusercontent.com/seydanur/efendi/main/data.csv"
 
-if data_choice == "Efendi Projesi (Hazır Demo)":
-    st.sidebar.info("Efendi verisi GitHub üzerinden çekiliyor...")
+if data_choice == "Efendi Projesi (Demo)":
     data = load_data(EFENDI_URL, is_url=True)
 else:
-    # BU KISIM ARTIK GÖRÜNÜR OLACAK
-    uploaded_file = st.sidebar.file_uploader("Kendi CSV dosyanızı buraya sürükleyin", type=["csv"])
-    if uploaded_file:
-        data = load_data(uploaded_file, is_url=False)
-    else:
-        st.sidebar.warning("Lütfen bir dosya yükleyin.")
-        data = None
+    uploaded_file = st.sidebar.file_uploader("CSV Yükle", type=["csv"])
+    data = load_data(uploaded_file, is_url=False) if uploaded_file else None
 
-# --- 4. ANALİZ VE GÖRSELLEŞTİRME ---
-st.title("🌐 Hemithea Network Analysis")
+# --- 3. ANA ANALİZ MOTORU ---
+st.title("🌐 Hemithea Network: Gelişmiş Analitik Dashboard")
 
 if data is not None:
-    # Verinin ilk iki sütununu Kaynak ve Hedef kabul et
-    source_col = data.columns[0]
-    target_col = data.columns[1]
-    
-    # NetworkX Graff Oluşturma
-    G = nx.from_pandas_edgelist(data, source=source_col, target=target_col)
-    
-    # AI - Kümeleme (Clustering)
+    # Kolon Seçimi
+    all_columns = data.columns.tolist()
+    col_source = st.sidebar.selectbox("Kaynak (Source):", all_columns, index=0)
+    col_target = st.sidebar.selectbox("Hedef (Target):", all_columns, index=min(1, len(all_columns)-1))
+
+    # --- HESAPLAMALAR ---
+    working_df = data[[col_source, col_target]].dropna()
+    G = nx.from_pandas_edgelist(working_df, source=col_source, target=col_target)
+
+    # 1. Degree Centrality (Popülerlik/Bağlantı Sayısı)
     degree_cent = nx.degree_centrality(G)
+    # 2. Betweenness Centrality (Köprü Olma/Bilgi Akışı Kontrolü)
+    betweenness_cent = nx.betweenness_centrality(G)
+    # 3. Closeness Centrality (Erişilebilirlik/Hız)
+    closeness_cent = nx.closeness_centrality(G)
+
+    # AI Kümeleme (K-Means)
     nodes_list = list(G.nodes())
-    
-    if len(nodes_list) >= 2:
-        # Metrikleri ölçeklendir ve K-Means uygula
-        features = np.array([[degree_cent[n]] for n in nodes_list])
-        kmeans = KMeans(n_clusters=min(3, len(nodes_list)), random_state=42, n_init=10)
+    if len(nodes_list) >= 3:
+        # Üç metriği de kullanarak kümeleme yapalım
+        features = np.array([[degree_cent[n], betweenness_cent[n], closeness_cent[n]] for n in nodes_list])
+        kmeans = KMeans(n_clusters=min(4, len(nodes_list)), random_state=42, n_init=10)
         clusters = kmeans.fit_predict(StandardScaler().fit_transform(features))
         cluster_map = dict(zip(nodes_list, clusters))
     else:
         cluster_map = {n: 0 for n in nodes_list}
 
-    # Üst Bilgi Kartları
-    c1, c2, c3 = st.columns(3)
+    # KPI Kartları
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("Toplam Düğüm", len(G.nodes))
     c2.metric("Toplam İlişki", len(G.edges))
-    c3.metric("En Önemli Aktör", max(degree_cent, key=degree_cent.get))
+    c3.metric("Ağ Yoğunluğu", f"{nx.density(G):.3f}")
+    c4.metric("En Köprü Aktör", max(betweenness_cent, key=betweenness_cent.get))
 
-    # Görselleştirme Paneli
-    net = Network(height="600px", width="100%", bgcolor="#ffffff", font_color="#333333")
-    net.from_nx(G)
-    
-    # Düğüm Özelleştirme
-    colors = {0: "#74ebd5", 1: "#acb6e5", 2: "#ff9a9e"}
-    for node in net.nodes:
-        n_id = node["id"]
-        node["size"] = 20 + (degree_cent[n_id] * 50)
-        node["color"] = colors.get(cluster_map[n_id], "#eeeeee")
-        node["title"] = f"Skor: {degree_cent[n_id]:.2f}"
+    # GÖRSELLEŞTİRME
+    tab_graph, tab_stats = st.tabs(["🕸️ İnteraktif Ağ Haritası", "📈 Metrik Detayları"])
 
-    html_data = net.generate_html()
-    components.html(html_data, height=650)
-    
-    # Veri Tablosu
-    st.subheader("📋 Veri Detayları")
-    st.dataframe(data, use_container_width=True)
+    with tab_graph:
+        size_metric = st.selectbox("Düğüm Boyutu Ne Olsun?", ["Degree Centrality", "Betweenness Centrality"])
+        
+        net = Network(height="600px", width="100%", bgcolor="#ffffff", font_color="#333333")
+        net.from_nx(G)
+        
+        colors = {0: "#FF4B4B", 1: "#1C83E1", 2: "#00C781", 3: "#FFBD45"}
+        
+        for node in net.nodes:
+            n_id = node["id"]
+            # Boyutu seçilen metriğe göre ayarla
+            val = degree_cent[n_id] if size_metric == "Degree Centrality" else betweenness_cent[n_id]
+            node["size"] = 15 + (val * 100)
+            node["color"] = colors.get(cluster_map[n_id], "#999999")
+            node["title"] = f"Degree: {degree_cent[n_id]:.2f}\nBetweenness: {betweenness_cent[n_id]:.2f}"
+
+        net.toggle_physics(True)
+        components.html(net.generate_html(), height=650)
+
+    with tab_stats:
+        st.subheader("Birim Bazlı Analitik Tablo")
+        res_df = pd.DataFrame({
+            'Aktör': nodes_list,
+            'Degree Centrality': [f"{degree_cent[n]:.4f}" for n in nodes_list],
+            'Betweenness': [f"{betweenness_cent[n]:.4f}" for n in nodes_list],
+            'Closeness': [f"{closeness_cent[n]:.4f}" for n in nodes_list],
+            'Küme (Cluster)': [cluster_map[n] for n in nodes_list]
+        }).sort_values(by='Betweenness', ascending=False)
+        
+        st.dataframe(res_df, use_container_width=True)
 
 else:
-    st.info("👈 Lütfen soldaki panelden 'Efendi' verisini seçin veya kendi verinizi yükleyerek başlayın.")
+    st.info("👈 Analiz için veri seçin veya yükleyin.")
