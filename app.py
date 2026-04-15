@@ -12,71 +12,12 @@ from io import StringIO
 # --- 1. SAYFA YAPILANDIRMASI ---
 st.set_page_config(layout="wide", page_title="Hemithea Network Analysis", page_icon="🌐")
 
-# API AYARLARI
-BASE_API_URL = "https://apphemitheanetwork.onrender.com"
-
-# --- LOGIN FONKSİYONU ---
-def login_request(username, password):
-    try:
-        response = requests.post(f"{BASE_API_URL}/login", data={"username": username, "password": password})
-        if response.status_code == 200:
-            return response.json()
-        return None
-    except Exception as e:
-        st.error(f"Sunucu hatası: {e}")
-        return None
-
-# --- GÜVENLİK DUVARI VE MİSAFİR MODU ---
-if "token" not in st.session_state and "guest_mode" not in st.session_state:
-    # URL'den gelen token kontrolü (Android için)
-    q_params = st.query_params
-    url_token = q_params.get("token")
-    url_user = q_params.get("username")
-
-    if url_token and url_user:
-        st.session_state["token"] = url_token
-        st.session_state["username"] = url_user
-        st.rerun()
-    else:
-        # Karşılama Ekranı
-        with st.columns(3)[1]:
-            st.title("🌐 Hemithea Network")
-            st.write("Gelişmiş ağ analitiği ve ilişki haritalama platformu.")
-            
-            # PORTFOLYO BUTONU (İş verenler için)
-            if st.button("✨ Örnek Analizleri İncele (Demo/Portfolio)", use_container_width=True):
-                st.session_state["guest_mode"] = True
-                st.session_state["username"] = "misafir_user"
-                st.rerun()
-            
-            st.divider()
-            
-            with st.form("login_form"):
-                st.subheader("🔑 Kullanıcı Girişi")
-                u = st.text_input("Kullanıcı Adı")
-                p = st.text_input("Şifre", type="password")
-                if st.form_submit_button("Giriş Yap", use_container_width=True):
-                    res = login_request(u, p)
-                    if res:
-                        st.session_state["token"] = res["access_token"]
-                        st.session_state["username"] = res["username"]
-                        st.rerun()
-                    else:
-                        st.error("Hatalı giriş bilgileri!")
-            st.info("Kendi veri setlerinizi yüklemek ve kaydetmek için giriş yapın.")
-        st.stop()
-
-# --- VERİ YÜKLEME FONKSİYONU ---
 @st.cache_data
-def load_data(url_or_file, is_url=True, token=None):
+def load_data(url_or_file, is_url=True):
     try:
         if is_url:
-            # Token varsa URL'ye ekle (Güvenli veri çekme)
-            final_url = url_or_file
-            if token:
-                final_url = f"{url_or_file}?token={token}"
-            
-            raw_url = final_url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
+            # GitHub linklerini RAW formatına otomatik dönüştürür
+            raw_url = url_or_file.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
             response = requests.get(raw_url, timeout=10)
             if response.status_code == 200:
                 return pd.read_csv(StringIO(response.text), sep=None, engine='python')
@@ -85,45 +26,106 @@ def load_data(url_or_file, is_url=True, token=None):
     except Exception as e:
         return None
 
-# --- ANA PANEL ---
+# --- 2. ÜST PANEL: VERİ SEÇİMİ ---
 st.title("🌐 Hemithea: Advanced Network Analytics")
-if st.session_state.get("guest_mode"):
-    st.sidebar.warning("📢 Demo Modu: Sadece örnek veriler açıktır.")
-    if st.sidebar.button("🚪 Çıkış ve Giriş Yap"):
-        del st.session_state["guest_mode"]
-        st.rerun()
+st.markdown("---")
 
-# Menü Seçimi
-menu_options = ["Efendi Projesi (Tarihsel)", "Game of Thrones (Popüler Kültür)"]
-if not st.session_state.get("guest_mode"):
-    menu_options.append("Kendi Verilerim (Android'den Gelen)")
-    menu_options.append("Yeni CSV Yükle")
+col_top1, col_top2 = st.columns([1, 2])
 
-dataset_choice = st.sidebar.selectbox("📂 Veri Seti Seçin:", menu_options)
+with col_top1:
+    dataset_choice = st.selectbox(
+        "📂 Analiz Edilecek Veri Setini Seçin:",
+        ["Efendi Projesi (Tarihsel)", "Game of Thrones (Popüler Kültür)", "Kendi CSV Dosyamı Yükle"]
+    )
 
-# Veri Belirleme Mantığı
-data = None
-if dataset_choice == "Efendi Projesi (Tarihsel)":
-    url = "https://github.com/seydanur-hemithea/Hemithea_network_analysis/blob/main/efendi_veri.csv"
-    data = load_data(url, is_url=True)
+with col_top2:
+    data = None
+    if dataset_choice == "Efendi Projesi (Tarihsel)":
+        url = "https://github.com/seydanur-hemithea/Hemithea_network_analysis/blob/main/efendi_veri.csv"
+        data = load_data(url, is_url=True)
+        st.success("✅ Efendi veri seti aktif.")
+    
+    elif dataset_choice == "Game of Thrones (Popüler Kültür)":
+        url = "https://github.com/seydanur-hemithea/Hemithea_network_analysis/blob/main/got-edges.csv"
+        data = load_data(url, is_url=True)
+        st.success("✅ Westeros ilişki ağı yüklendi.")
+        
+    else:
+        uploaded_file = st.file_uploader("CSV dosyanızı yükleyin", type=["csv"])
+        if uploaded_file:
+            data = load_data(uploaded_file, is_url=False)
 
-elif dataset_choice == "Game of Thrones (Popüler Kültür)":
-    url = "https://github.com/seydanur-hemithea/Hemithea_network_analysis/blob/main/got-edges.csv"
-    data = load_data(url, is_url=True)
-
-elif dataset_choice == "Kendi Verilerim (Android'den Gelen)":
-    user = st.session_state["username"]
-    token = st.session_state["token"]
-    url = f"{BASE_API_URL}/uploads/{user}/network_data.csv"
-    data = load_data(url, is_url=True, token=token)
-
-elif dataset_choice == "Yeni CSV Yükle":
-    uploaded_file = st.sidebar.file_uploader("CSV yükle", type=["csv"])
-    if uploaded_file:
-        data = load_data(uploaded_file, is_url=False)
-
-# --- ANALİZ BLOĞU (Buradan sonrası senin orijinal kodunla devam ediyor) ---
+# --- 3. ANALİZ VE GÖRSELLEŞTİRME ---
 if data is not None:
-    # ... (nx metrikleri, KMeans kümeleme ve tablar burada aynen çalışacak) ...
-    st.success(f"✅ {dataset_choice} başarıyla analiz edildi.")
-    # Senin mevcut G = nx... kodların buraya gelecek.
+    st.markdown("### ⚙️ Yapılandırma ve Dinamik Metrikler")
+    p1, p2, p3 = st.columns(3)
+    
+    all_cols = data.columns.tolist()
+    with p1:
+        source_col = st.selectbox("Kaynak (Source):", all_cols, index=0)
+    with p2:
+        target_col = st.selectbox("Hedef (Target):", all_cols, index=min(1, len(all_cols)-1))
+    with p3:
+        itme_kuvveti = st.slider("Düğüm Mesafesi (Ferahlık):", 50, 400, 200)
+
+    # Veri İşleme
+    df_clean = data[[source_col, target_col]].dropna()
+    G = nx.from_pandas_edgelist(df_clean, source=source_col, target=target_col)
+
+    # Metrik Hesaplamaları
+    deg_cent = nx.degree_centrality(G)
+    bet_cent = nx.betweenness_centrality(G)
+    
+    # AI Kümeleme
+    nodes = list(G.nodes())
+    if len(nodes) >= 3:
+        features = np.array([[deg_cent[n], bet_cent[n]] for n in nodes])
+        kmeans = KMeans(n_clusters=min(5, len(nodes)), random_state=42, n_init=10)
+        clusters = kmeans.fit_predict(StandardScaler().fit_transform(features))
+        cluster_map = dict(zip(nodes, clusters))
+    else:
+        cluster_map = {n: 0 for n in nodes}
+
+    # Özet Kartlar (KPI)
+    st.divider()
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Toplam Aktör", len(G.nodes))
+    k2.metric("İlişki Sayısı", len(G.edges))
+    k3.metric("Ağ Yoğunluğu", f"{nx.density(G):.4f}")
+    k4.metric("Kilit Karakter/Birim", max(bet_cent, key=bet_cent.get))
+
+    # Görselleştirme ve Tablo Sekmeleri
+    tab_net, tab_stats = st.tabs(["🕸️ İnteraktif Harita", "📊 Analitik Veriler"])
+
+    with tab_net:
+        st.subheader(f"{dataset_choice} İlişki Dinamikleri")
+        size_metric = st.selectbox("Düğüm Boyutlandırma Ölçütü:", ["Popülerlik (Degree)", "Stratejik Konum (Betweenness)"])
+        
+        net = Network(height="700px", width="100%", bgcolor="#ffffff", font_color="#333333")
+        net.from_nx(G)
+        
+        # Renk Paleti
+        palette = ["#FF4B4B", "#1C83E1", "#00C781", "#FFBD45", "#7D3C98"]
+        
+        for node in net.nodes:
+            n_id = node["id"]
+            val = deg_cent[n_id] if size_metric == "Popülerlik (Degree)" else bet_cent[n_id]
+            node["size"] = 20 + (val * 200) # GoT verisi için katsayıyı biraz artırdık
+            node["color"] = palette[cluster_map[n_id] % len(palette)]
+            node["title"] = f"Degree: {deg_cent[n_id]:.3f}\nBetweenness: {bet_cent[n_id]:.3f}"
+
+        net.repulsion(node_distance=itme_kuvveti, central_gravity=0.5, spring_length=itme_kuvveti)
+        components.html(net.generate_html(), height=750)
+
+    with tab_stats:
+        st.subheader("Birim Bazlı Detaylı İstatistikler")
+        res_df = pd.DataFrame({
+            'Aktör': nodes,
+            'Degree Centrality': [deg_cent[n] for n in nodes],
+            'Betweenness Centrality': [bet_cent[n] for n in nodes],
+            'Küme (AI Cluster)': [cluster_map[n] for n in nodes]
+        }).sort_values(by='Betweenness Centrality', ascending=False)
+        st.dataframe(res_df, use_container_width=True)
+
+else:
+    st.info("👆 Analize başlamak için yukarıdaki menüden bir veri seti seçin.")
